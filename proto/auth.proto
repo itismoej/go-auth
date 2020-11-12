@@ -13,6 +13,6 @@ message Token {
   string access = 1;
 }
 
-service AuthService {
+service Auth {
   rpc Login(Credentials) returns (Token) {};
 }

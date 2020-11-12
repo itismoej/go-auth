@@ -7,6 +7,7 @@ import (
 
 type User struct {
 	gorm.Model
+	RoleID         int
 	Role           Role
 	FirstName      string `gorm:"size:255"`
 	LastName       string `gorm:"size:255"`
