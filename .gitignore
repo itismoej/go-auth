@@ -16,3 +16,6 @@
 
 # Jetbrains
 .idea/
+
+*.pem
+*.db
