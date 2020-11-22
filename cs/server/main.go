@@ -75,7 +75,7 @@ func (manager *JWTManager) Generate(user *models.User) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, claims)
 
-	data, err := ioutil.ReadFile("~/go/src/github.com/mjafari98/go-auth/cs/server/ecdsa-p521-private.pem")
+	data, err := ioutil.ReadFile("cs/server/ecdsa-p521-private.pem")
 	if err != nil {
 		panic(err)
 	}
@@ -150,6 +150,7 @@ func main() {
 	_ = pb.RegisterAuthHandlerServer(ctx, mux, &authServer)
 
 	_ = http.ListenAndServe(":9090", mux)
+	log.Println("server REST started in localhost:9090 (Wait 60 second before making http requests) ...")
 	// end of REST server
 
 	// start gRPC server
@@ -164,6 +165,7 @@ func main() {
 	reflection.Register(grpcServer)
 
 	err = grpcServer.Serve(listener)
+	log.Println("server gRPC started in localhost:50051 ...")
 	if err != nil {
 		log.Fatal("cannot start server: ", err)
 	}
