@@ -164,8 +164,8 @@ func main() {
 	pb.RegisterAuthServer(grpcServer, &authServer)
 	reflection.Register(grpcServer)
 
+	log.Println("server gRPC is starting in localhost:50051 ...")
 	err = grpcServer.Serve(listener)
-	log.Println("server gRPC started in localhost:50051 ...")
 	if err != nil {
 		log.Fatal("cannot start server: ", err)
 	}
