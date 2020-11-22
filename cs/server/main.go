@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
 	"google.golang.org/grpc"
@@ -18,6 +19,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"time"
 )
 
@@ -73,7 +75,7 @@ func (manager *JWTManager) Generate(user *models.User) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, claims)
 
-	data, err := ioutil.ReadFile("ecdsa-p521-private.pem")
+	data, err := ioutil.ReadFile("~/go/src/github.com/mjafari98/go-auth/cs/server/ecdsa-p521-private.pem")
 	if err != nil {
 		panic(err)
 	}
@@ -138,6 +140,19 @@ func (server *AuthServer) Login(ctx context.Context, credentials *pb.Credentials
 }
 
 func main() {
+	authServer := AuthServer{}
+
+	// start REST server
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mux := runtime.NewServeMux()
+	_ = pb.RegisterAuthHandlerServer(ctx, mux, &authServer)
+
+	_ = http.ListenAndServe(":9090", mux)
+	// end of REST server
+
+	// start gRPC server
 	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -145,12 +160,12 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	pb.RegisterAuthServer(grpcServer, &AuthServer{})
+	pb.RegisterAuthServer(grpcServer, &authServer)
 	reflection.Register(grpcServer)
 
 	err = grpcServer.Serve(listener)
-
 	if err != nil {
 		log.Fatal("cannot start server: ", err)
 	}
+	// end of gRPC server
 }
