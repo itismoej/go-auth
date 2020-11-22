@@ -14,5 +14,9 @@ message Token {
 }
 
 service Auth {
-  rpc Login(Credentials) returns (Token) {};
+  rpc Login(Credentials) returns (Token) {
+    option (google.api.http) = {
+      post: "/login"
+      body: Credentials
+  };
 }
