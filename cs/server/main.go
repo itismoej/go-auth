@@ -149,8 +149,8 @@ func main() {
 	mux := runtime.NewServeMux()
 	_ = pb.RegisterAuthHandlerServer(ctx, mux, &authServer)
 
-	_ = http.ListenAndServe(":9090", mux)
 	log.Println("server REST started in localhost:9090 (Wait 60 second before making http requests) ...")
+	go http.ListenAndServe(":9090", mux)
 	// end of REST server
 
 	// start gRPC server
