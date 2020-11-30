@@ -7,8 +7,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"io/ioutil"
+	"log"
+	"net"
+	"net/http"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
 	"google.golang.org/grpc"
@@ -16,11 +22,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
-	"io/ioutil"
-	"log"
-	"net"
-	"net/http"
-	"time"
 )
 
 const (
@@ -137,6 +138,24 @@ func (server *AuthServer) Login(ctx context.Context, credentials *pb.Credentials
 
 	res := &pb.Token{Access: token}
 	return res, nil
+}
+
+func (server *AuthServer) Signup(ctx context.Context, user *pb.User) (*pb.User, error) {
+	var newUser models.User
+	newUser.FromProtoBuf(user)
+	newUser.IsActive = true
+	newUser.SetNewPassword(user.Password)
+
+	result := DB.Create(&newUser)
+	if errors.Is(result.Error, gorm.ErrInvalidData) {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid data has been entered")
+	}
+	if errors.Is(result.Error, gorm.ErrRegistered) {
+		return nil, status.Errorf(codes.AlreadyExists, "this user is already registered")
+	}
+
+	user = newUser.ConvertToProtoBuf()
+	return user, nil
 }
 
 func main() {

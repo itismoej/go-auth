@@ -17,6 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthClient interface {
+	Signup(ctx context.Context, in *User, opts ...grpc.CallOption) (*User, error)
 	Login(ctx context.Context, in *Credentials, opts ...grpc.CallOption) (*Token, error)
 }
 
@@ -26,6 +27,15 @@ type authClient struct {
 
 func NewAuthClient(cc grpc.ClientConnInterface) AuthClient {
 	return &authClient{cc}
+}
+
+func (c *authClient) Signup(ctx context.Context, in *User, opts ...grpc.CallOption) (*User, error) {
+	out := new(User)
+	err := c.cc.Invoke(ctx, "/auth.Auth/Signup", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *authClient) Login(ctx context.Context, in *Credentials, opts ...grpc.CallOption) (*Token, error) {
@@ -41,6 +51,7 @@ func (c *authClient) Login(ctx context.Context, in *Credentials, opts ...grpc.Ca
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility
 type AuthServer interface {
+	Signup(context.Context, *User) (*User, error)
 	Login(context.Context, *Credentials) (*Token, error)
 	mustEmbedUnimplementedAuthServer()
 }
@@ -49,6 +60,9 @@ type AuthServer interface {
 type UnimplementedAuthServer struct {
 }
 
+func (UnimplementedAuthServer) Signup(context.Context, *User) (*User, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Signup not implemented")
+}
 func (UnimplementedAuthServer) Login(context.Context, *Credentials) (*Token, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
@@ -63,6 +77,24 @@ type UnsafeAuthServer interface {
 
 func RegisterAuthServer(s grpc.ServiceRegistrar, srv AuthServer) {
 	s.RegisterService(&_Auth_serviceDesc, srv)
+}
+
+func _Auth_Signup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(User)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).Signup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/auth.Auth/Signup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).Signup(ctx, req.(*User))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -87,6 +119,10 @@ var _Auth_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "auth.Auth",
 	HandlerType: (*AuthServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Signup",
+			Handler:    _Auth_Signup_Handler,
+		},
 		{
 			MethodName: "Login",
 			Handler:    _Auth_Login_Handler,

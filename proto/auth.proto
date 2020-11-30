@@ -6,6 +6,22 @@ import "google/api/annotations.proto";
 
 option go_package = ".;pb";
 
+service Auth {
+  rpc Signup (User) returns (User) {
+    option (google.api.http) = {
+      post: "/signup"
+      body: "*"
+    };
+  };
+
+  rpc Login (Credentials) returns (Token) {
+    option (google.api.http) = {
+      post: "/login"
+      body: "*"
+    };
+  }
+}
+
 message Credentials {
   string username = 1;
   string password = 2;
@@ -15,11 +31,12 @@ message Token {
   string access = 1;
 }
 
-service Auth {
-  rpc Login(Credentials) returns (Token) {
-    option (google.api.http) = {
-      post: "/login"
-      body: "*"
-    };
-  }
+message User {
+  uint64 ID = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string email = 4;
+  string username = 5;
+  string password = 6;
+  string gender = 7;
 }
