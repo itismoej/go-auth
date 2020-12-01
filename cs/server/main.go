@@ -192,7 +192,12 @@ func main() {
 		"server REST started in localhost:%s (Wait 60 second before making http requests) ...\n",
 		RESTPort,
 	)
-	go http.ListenAndServe(RESTPort, mux)
+	go func() {
+		err := http.ListenAndServe(RESTPort, mux)
+		if err != nil {
+			log.Fatal("cannot start REST server: ", err)
+		}
+	}()
 	// end of REST server
 
 	// start gRPC server
@@ -209,7 +214,7 @@ func main() {
 	log.Printf("server gRPC is starting in localhost:%s ...\n", GRPCPort)
 	err = grpcServer.Serve(listener)
 	if err != nil {
-		log.Fatal("cannot start server: ", err)
+		log.Fatal("cannot start GRPC server: ", err)
 	}
 	// end of gRPC server
 }
