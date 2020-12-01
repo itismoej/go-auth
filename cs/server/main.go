@@ -26,7 +26,8 @@ import (
 const (
 	accessTokenDuration  = 15 * time.Minute
 	refreshTokenDuration = 24 * time.Hour
-	port                 = ":50051"
+	GRPCPort             = ":50051"
+	RESTPort             = ":9090"
 )
 
 type JWTManager struct {
@@ -187,12 +188,15 @@ func main() {
 	mux := runtime.NewServeMux()
 	_ = pb.RegisterAuthHandlerServer(ctx, mux, &authServer)
 
-	log.Println("server REST started in localhost:9090 (Wait 60 second before making http requests) ...")
-	go http.ListenAndServe(":9090", mux)
+	log.Printf(
+		"server REST started in localhost:%s (Wait 60 second before making http requests) ...\n",
+		RESTPort,
+	)
+	go http.ListenAndServe(RESTPort, mux)
 	// end of REST server
 
 	// start gRPC server
-	listener, err := net.Listen("tcp", port)
+	listener, err := net.Listen("tcp", GRPCPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -202,7 +206,7 @@ func main() {
 	pb.RegisterAuthServer(grpcServer, &authServer)
 	reflection.Register(grpcServer)
 
-	log.Println("server gRPC is starting in localhost:50051 ...")
+	log.Printf("server gRPC is starting in localhost:%s ...\n", GRPCPort)
 	err = grpcServer.Serve(listener)
 	if err != nil {
 		log.Fatal("cannot start server: ", err)
