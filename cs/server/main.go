@@ -7,6 +7,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
@@ -15,15 +20,12 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
-	"io/ioutil"
-	"log"
-	"net"
-	"time"
 )
 
 const (
 	secretKey     = "secret"
-	tokenDuration = 15 * time.Minute
+	accessTokenDuration = 15 * time.Minute
+	refreshTokenDuration = 24 * time.Hour
 	port          = ":50051"
 )
 
@@ -33,6 +35,15 @@ type JWTManager struct {
 }
 
 type UserClaims struct {
+	jwt.StandardClaims
+	Username  string      `json:"username"`
+	Role      models.Role `json:"role"`
+	FirstName string      `json:"first_name"`
+	LastName  string      `json:"last_name"`
+	Email     string      `json:"email"`
+}
+
+type UserClaimsRefresh struct {
 	jwt.StandardClaims
 	Username  string      `json:"username"`
 	Role      models.Role `json:"role"`
@@ -59,7 +70,7 @@ func loadKey(pemData []byte) (crypto.PrivateKey, error) {
 	return x509.ParseECPrivateKey(block.Bytes)
 }
 
-func (manager *JWTManager) Generate(user *models.User) (string, error) {
+func (manager *JWTManager) Generate(user *models.User) (*pb.JWTToken) {
 	claims := UserClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(manager.tokenDuration).Unix(),
@@ -82,7 +93,12 @@ func (manager *JWTManager) Generate(user *models.User) (string, error) {
 		panic(err)
 	}
 
-	return token.SignedString(privateKey)
+	signedToken, err := token.SignedString(privateKey) 
+	if err != nil {
+		panic(err)
+	}
+
+	return &pb.JWTToken{Token: signedToken}
 }
 
 func (manager *JWTManager) Verify(accessToken string) (*UserClaims, error) {
@@ -112,32 +128,46 @@ func (manager *JWTManager) Verify(accessToken string) (*UserClaims, error) {
 }
 
 var DB = models.ConnectAndMigrate()
-var jwtManager = JWTManager{
+
+var accessJwtManager = JWTManager{
 	secretKey:     secretKey,
-	tokenDuration: tokenDuration,
+	tokenDuration: accessTokenDuration,
 }
+var refreshJwtManager = JWTManager{
+	secretKey:     secretKey,
+	tokenDuration: refreshTokenDuration,
+}
+
 
 type AuthServer struct {
 	pb.UnimplementedAuthServer
 }
 
-func (server *AuthServer) Login(ctx context.Context, credentials *pb.Credentials) (*pb.Token, error) {
+func (server *AuthServer) Login(ctx context.Context, credentials *pb.Credentials) (*pb.PairToken, error) {
 	var user models.User
 	result := DB.Take(&user, "username = ?", credentials.GetUsername())
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) || !user.PasswordIsCorrect(credentials.GetPassword()) {
 		return nil, status.Errorf(codes.NotFound, "incorrect username/password")
 	}
 
-	token, err := jwtManager.Generate(&user)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "cannot generate access token")
-	}
+	accessToken := accessJwtManager.Generate(&user)
+	refreshToken := refreshJwtManager.Generate(&user)
 
-	res := &pb.Token{Access: token}
+	res := &pb.PairToken{Access: accessToken, Refresh: refreshToken}
 	return res, nil
 }
 
+func (server *AuthServer) RefreshAccessToken(ctx context.Context, refreshToken *pb.JWTToken) (*pb.JWTToken, error) {
+	
+	
+}
+
+
+
 func main() {
+	user := models.User{Username: "ali"}
+	user.SetNewPassword("123")
+	DB.Create(&user)
 	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -148,9 +178,12 @@ func main() {
 	pb.RegisterAuthServer(grpcServer, &AuthServer{})
 	reflection.Register(grpcServer)
 
+	log.Println("server running port felan ...")
+
 	err = grpcServer.Serve(listener)
 
 	if err != nil {
 		log.Fatal("cannot start server: ", err)
 	}
+	
 }

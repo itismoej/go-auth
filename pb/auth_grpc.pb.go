@@ -17,7 +17,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthClient interface {
-	Login(ctx context.Context, in *Credentials, opts ...grpc.CallOption) (*Token, error)
+	Login(ctx context.Context, in *Credentials, opts ...grpc.CallOption) (*PairToken, error)
+	RefreshAccessToken(ctx context.Context, in *JWTToken, opts ...grpc.CallOption) (*JWTToken, error)
 }
 
 type authClient struct {
@@ -28,9 +29,18 @@ func NewAuthClient(cc grpc.ClientConnInterface) AuthClient {
 	return &authClient{cc}
 }
 
-func (c *authClient) Login(ctx context.Context, in *Credentials, opts ...grpc.CallOption) (*Token, error) {
-	out := new(Token)
+func (c *authClient) Login(ctx context.Context, in *Credentials, opts ...grpc.CallOption) (*PairToken, error) {
+	out := new(PairToken)
 	err := c.cc.Invoke(ctx, "/auth.Auth/Login", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authClient) RefreshAccessToken(ctx context.Context, in *JWTToken, opts ...grpc.CallOption) (*JWTToken, error) {
+	out := new(JWTToken)
+	err := c.cc.Invoke(ctx, "/auth.Auth/RefreshAccessToken", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +51,8 @@ func (c *authClient) Login(ctx context.Context, in *Credentials, opts ...grpc.Ca
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility
 type AuthServer interface {
-	Login(context.Context, *Credentials) (*Token, error)
+	Login(context.Context, *Credentials) (*PairToken, error)
+	RefreshAccessToken(context.Context, *JWTToken) (*JWTToken, error)
 	mustEmbedUnimplementedAuthServer()
 }
 
@@ -49,8 +60,11 @@ type AuthServer interface {
 type UnimplementedAuthServer struct {
 }
 
-func (UnimplementedAuthServer) Login(context.Context, *Credentials) (*Token, error) {
+func (UnimplementedAuthServer) Login(context.Context, *Credentials) (*PairToken, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedAuthServer) RefreshAccessToken(context.Context, *JWTToken) (*JWTToken, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefreshAccessToken not implemented")
 }
 func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
 
@@ -83,6 +97,24 @@ func _Auth_Login_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auth_RefreshAccessToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JWTToken)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServer).RefreshAccessToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/auth.Auth/RefreshAccessToken",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServer).RefreshAccessToken(ctx, req.(*JWTToken))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Auth_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "auth.Auth",
 	HandlerType: (*AuthServer)(nil),
@@ -90,6 +122,10 @@ var _Auth_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _Auth_Login_Handler,
+		},
+		{
+			MethodName: "RefreshAccessToken",
+			Handler:    _Auth_RefreshAccessToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

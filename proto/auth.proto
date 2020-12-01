@@ -9,10 +9,17 @@ message Credentials {
   string password = 2;
 }
 
-message Token {
-  string access = 1;
+message PairToken {
+  reserved 1;
+  JWTToken refresh = 2;
+  JWTToken access = 3;
+}
+
+message JWTToken {
+  string token = 1;
 }
 
 service Auth {
-  rpc Login(Credentials) returns (Token) {};
+  rpc Login(Credentials) returns (PairToken) {};
+  rpc RefreshAccessToken(JWTToken) returns (JWTToken) {};
 }
