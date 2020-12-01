@@ -21,7 +21,7 @@ service Auth {
     };
   }
 
-  rpc RefreshAccessToken(JWTToken) returns (JWTToken) {
+  rpc RefreshAccessToken (JWTToken) returns (JWTToken) {
     option (google.api.http) = {
       post: "/refresh"
       body: "*"

@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto"
-	"crypto/x509"
-	"encoding/pem"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -12,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -25,14 +24,12 @@ import (
 )
 
 const (
-	secretKey     = "secret"
-	accessTokenDuration = 15 * time.Minute
+	accessTokenDuration  = 15 * time.Minute
 	refreshTokenDuration = 24 * time.Hour
-	port          = ":50051"
+	port                 = ":50051"
 )
 
 type JWTManager struct {
-	secretKey     string
 	tokenDuration time.Duration
 }
 
@@ -45,34 +42,7 @@ type UserClaims struct {
 	Email     string      `json:"email"`
 }
 
-type UserClaimsRefresh struct {
-	jwt.StandardClaims
-	Username  string      `json:"username"`
-	Role      models.Role `json:"role"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	Email     string      `json:"email"`
-}
-
-func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
-	return &JWTManager{secretKey, tokenDuration}
-}
-
-func loadKey(pemData []byte) (crypto.PrivateKey, error) {
-	block, _ := pem.Decode(pemData)
-
-	if block == nil {
-		return nil, fmt.Errorf("unable to load key")
-	}
-
-	if block.Type != "EC PRIVATE KEY" {
-		return nil, fmt.Errorf("wrong type of key - %s", block.Type)
-	}
-
-	return x509.ParseECPrivateKey(block.Bytes)
-}
-
-func (manager *JWTManager) Generate(user *models.User) (*pb.JWTToken) {
+func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
 	claims := UserClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(manager.tokenDuration).Unix(),
@@ -86,16 +56,16 @@ func (manager *JWTManager) Generate(user *models.User) (*pb.JWTToken) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, claims)
 
-	data, err := ioutil.ReadFile("cs/server/ecdsa-p521-private.pem")
+	key, err := ioutil.ReadFile("cs/server/ecdsa-p521-private.pem")
 	if err != nil {
 		panic(err)
 	}
-	privateKey, err := loadKey(data)
+	privateKey, err := jwt.ParseECPrivateKeyFromPEM(key)
 	if err != nil {
 		panic(err)
 	}
 
-	signedToken, err := token.SignedString(privateKey) 
+	signedToken, err := token.SignedString(privateKey)
 	if err != nil {
 		panic(err)
 	}
@@ -103,43 +73,54 @@ func (manager *JWTManager) Generate(user *models.User) (*pb.JWTToken) {
 	return &pb.JWTToken{Token: signedToken}
 }
 
-func (manager *JWTManager) Verify(accessToken string) (*UserClaims, error) {
-	token, err := jwt.ParseWithClaims(
-		accessToken,
-		&UserClaims{},
-		func(token *jwt.Token) (interface{}, error) {
-			_, ok := token.Method.(*jwt.SigningMethodECDSA)
-			if !ok {
-				return nil, fmt.Errorf("unexpected token signing method")
-			}
+func (manager *JWTManager) Verify(jwtToken string) (*UserClaims, error) {
+	var err error
 
-			return []byte(manager.secretKey), nil
-		},
-	)
+	publicKeyPath := "cs/server/ecdsa-p521-public.pem"
+	key, err := ioutil.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse ECDSA public key: %v", publicKeyPath)
+	}
+
+	var ecdsaKey *ecdsa.PublicKey
+	if ecdsaKey, err = jwt.ParseECPublicKeyFromPEM(key); err != nil {
+		return nil, fmt.Errorf("unable to parse ECDSA public key: %v", err)
+	}
+
+	parts := strings.Split(jwtToken, ".")
+
+	err = jwt.SigningMethodES512.Verify(strings.Join(parts[0:2], "."), parts[2], ecdsaKey)
+	if err != nil {
+		return nil, fmt.Errorf("error while verifying key: %v", err)
+	}
+
+	token, err := jwt.ParseWithClaims(jwtToken, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return ecdsaKey, nil
+	})
 
 	if err != nil {
-		return nil, fmt.Errorf("invalid token: %w", err)
+		return nil, fmt.Errorf("%v", err)
 	}
 
-	claims, ok := token.Claims.(*UserClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid token claims")
+	if claims, ok := token.Claims.(*UserClaims); ok && token.Valid {
+		return claims, nil
+	} else {
+		return nil, fmt.Errorf("invalid claims: %v", ok)
 	}
-
-	return claims, nil
 }
 
 var DB = models.ConnectAndMigrate()
 
 var accessJwtManager = JWTManager{
-	secretKey:     secretKey,
 	tokenDuration: accessTokenDuration,
 }
 var refreshJwtManager = JWTManager{
-	secretKey:     secretKey,
 	tokenDuration: refreshTokenDuration,
 }
-
 
 type AuthServer struct {
 	pb.UnimplementedAuthServer
@@ -178,7 +159,22 @@ func (server *AuthServer) Signup(ctx context.Context, user *pb.User) (*pb.User, 
 }
 
 func (server *AuthServer) RefreshAccessToken(ctx context.Context, refreshToken *pb.JWTToken) (*pb.JWTToken, error) {
+	claims, err := refreshJwtManager.Verify(refreshToken.Token)
+	if err != nil {
+		fmt.Println(err)
+		return nil, status.Errorf(codes.Aborted, "jwt is not valid")
+	}
 
+	var user models.User
+	result := DB.Take(&user, "username = ?", claims.Username)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, status.Errorf(codes.NotFound, "incorrect claims")
+	}
+
+	access := accessJwtManager.Generate(&user)
+
+	res := &pb.JWTToken{Token: access.Token}
+	return res, nil
 }
 
 func main() {
