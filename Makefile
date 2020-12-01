@@ -21,4 +21,5 @@ clean:
 	rm -rf pb/*.go
 
 run:
-	go run cs/server/main.go
+	go install cs/server/*.go
+	auth_server
