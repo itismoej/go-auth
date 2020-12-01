@@ -14,12 +14,19 @@ service Auth {
     };
   };
 
-  rpc Login (Credentials) returns (Token) {
+  rpc Login (Credentials) returns (PairToken) {
     option (google.api.http) = {
       post: "/login"
       body: "*"
     };
   }
+
+  rpc RefreshAccessToken(JWTToken) returns (JWTToken) {
+    option (google.api.http) = {
+      post: "/refresh"
+      body: "*"
+    };
+  };
 }
 
 message Credentials {
@@ -27,8 +34,13 @@ message Credentials {
   string password = 2;
 }
 
-message Token {
-  string access = 1;
+message JWTToken {
+  string token = 1;
+}
+
+message PairToken {
+  JWTToken refresh = 1;
+  JWTToken access = 2;
 }
 
 message User {
