@@ -6,7 +6,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 )
@@ -38,10 +38,7 @@ func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, claims)
 
-	key, err := ioutil.ReadFile("cs/server/ecdsa-p521-private.pem")
-	if err != nil {
-		panic(err)
-	}
+	key := []byte(os.Getenv("PRIVATE_KEY"))
 	privateKey, err := jwt.ParseECPrivateKeyFromPEM(key)
 	if err != nil {
 		panic(err)
@@ -58,12 +55,7 @@ func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
 func (manager *JWTManager) Verify(jwtToken string) (*UserClaims, error) {
 	var err error
 
-	publicKeyPath := "cs/server/ecdsa-p521-public.pem"
-	key, err := ioutil.ReadFile(publicKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse ECDSA public key: %v", publicKeyPath)
-	}
-
+	key := []byte(os.Getenv("PUBLIC_KEY"))
 	var ecdsaKey *ecdsa.PublicKey
 	if ecdsaKey, err = jwt.ParseECPublicKeyFromPEM(key); err != nil {
 		return nil, fmt.Errorf("unable to parse ECDSA public key: %v", err)
