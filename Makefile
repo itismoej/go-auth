@@ -13,5 +13,5 @@ ready:
 	go mod tidy
 
 run:
-	go install ./cs/server/
-	server
+	go build -i -o $(go env GOPATH)/bin/goauth ./cs/server/
+	goauth
