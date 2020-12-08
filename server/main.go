@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/golang/glog"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
@@ -10,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -18,6 +20,27 @@ const (
 )
 
 var DB = models.ConnectAndMigrate()
+
+func preflightHandler(w http.ResponseWriter, r *http.Request) {
+	headers := []string{"Content-Type", "Accept"}
+	w.Header().Set("Access-Control-Allow-Headers", strings.Join(headers, ","))
+	methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"}
+	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
+	glog.Infof("preflight request for %s", r.URL.Path)
+	return
+}
+
+// allowCORS allows Cross Origin Resource Sharing from any origin.
+func allowCORS(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
+			preflightHandler(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	authServer := AuthServer{}
@@ -34,7 +57,7 @@ func main() {
 		RESTPort,
 	)
 	go func() {
-		err := http.ListenAndServe(RESTPort, mux)
+		err := http.ListenAndServe(RESTPort, allowCORS(mux))
 		if err != nil {
 			log.Fatal("cannot start REST server: ", err)
 		}
