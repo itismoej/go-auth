@@ -12,6 +12,10 @@ RUN go install \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
+RUN make clean
+RUN make ready
+RUN make build
+
 RUN chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]

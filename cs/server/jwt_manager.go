@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"encoding/base64"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/mjafari98/go-auth/models"
@@ -38,7 +39,7 @@ func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, claims)
 
-	key := []byte(os.Getenv("PRIVATE_KEY"))
+	key, _ := base64.StdEncoding.DecodeString(os.Getenv("PRIVATE_KEY"))
 	privateKey, err := jwt.ParseECPrivateKeyFromPEM(key)
 	if err != nil {
 		panic(err)
@@ -55,7 +56,7 @@ func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
 func (manager *JWTManager) Verify(jwtToken string) (*UserClaims, error) {
 	var err error
 
-	key := []byte(os.Getenv("PUBLIC_KEY"))
+	key, _ := base64.StdEncoding.DecodeString(os.Getenv("PRIVATE_KEY"))
 	var ecdsaKey *ecdsa.PublicKey
 	if ecdsaKey, err = jwt.ParseECPublicKeyFromPEM(key); err != nil {
 		return nil, fmt.Errorf("unable to parse ECDSA public key: %v", err)

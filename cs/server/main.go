@@ -30,7 +30,7 @@ func main() {
 	_ = pb.RegisterAuthHandlerServer(ctx, mux, &authServer)
 
 	log.Printf(
-		"server REST started in localhost:%s (Wait 60 second before making http requests) ...\n",
+		"server REST started in localhost%s (Wait 60 second before making http requests) ...\n",
 		RESTPort,
 	)
 	go func() {
@@ -52,7 +52,7 @@ func main() {
 	pb.RegisterAuthServer(grpcServer, &authServer)
 	reflection.Register(grpcServer)
 
-	log.Printf("server gRPC is starting in localhost:%s ...\n", GRPCPort)
+	log.Printf("server gRPC is starting in localhost%s ...\n", GRPCPort)
 	err = grpcServer.Serve(listener)
 	if err != nil {
 		log.Fatal("cannot start GRPC server: ", err)
