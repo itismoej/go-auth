@@ -13,7 +13,7 @@ ready:
 	go mod tidy
 
 build:
-	go build -i -o $(go env GOPATH)/bin/goauth ./cs/server/
+	go build -i -o $(go env GOPATH)/bin/goauth ./server/
 
 run:
 	goauth
