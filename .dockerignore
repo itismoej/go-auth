@@ -9,3 +9,5 @@ env.*
 /tmp/*
 *.pem
 *.env
+*.db
+*.sqlite3
