@@ -16,3 +16,5 @@ Run the container:
 ```shell script
 docker run --rm -p 9090:9090 -p 50051:50051 --env-file=.env -it mjafari98/go-auth:latest
 ```
+Do not forget to modify `--env-file=.env` and replace the `.env` part to the path of
+the env file of the project (You may have placed it somewhere else!)
