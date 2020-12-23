@@ -5,11 +5,12 @@ An open-source JWT-Based Authentication System which is developing with golang
 
 ## Dependencies
 - You should have Docker installed
-- You should place a `.env` file containing base64 encoded public-key & private-key (env file should be like below)
+- You should place a `.env` file containing base64 encoded public-key & private-key (env file should be like below).
 ```
 PUBLIC_KEY=abase64encodedpublickey
 PRIVATE_KEY=abase64encodedprivatekey
 ```
+- The keys **SHOULD** be Elliptic Curve Digital Signature Algorithm (ECDSA)
 
 ## Start project
 Pull the project image:
