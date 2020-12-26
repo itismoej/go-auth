@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/golang/glog"
+	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
@@ -43,42 +45,49 @@ func allowCORS(h http.Handler) http.Handler {
 }
 
 func main() {
+	// start gRPC server
 	authServer := AuthServer{}
+
+	listener, err := net.Listen("tcp", GRPCPort)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer(
+		grpc.StreamInterceptor(grpcAuth.StreamServerInterceptor(AuthInterceptorFunc)),
+		grpc.UnaryInterceptor(grpcAuth.UnaryServerInterceptor(AuthInterceptorFunc)),
+	)
+
+	pb.RegisterAuthServer(grpcServer, &authServer)
+	reflection.Register(grpcServer)
+
+	log.Printf("server gRPC is starting in localhost%s ...\n", GRPCPort)
+	go func() {
+		err = grpcServer.Serve(listener)
+		if err != nil {
+			log.Fatal("cannot start GRPC server: ", err)
+		}
+	}()
+	// end of gRPC server
 
 	// start REST server
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	mux := runtime.NewServeMux()
-	_ = pb.RegisterAuthHandlerServer(ctx, mux, &authServer)
+	dialOptions := []grpc.DialOption{grpc.WithInsecure()}
+	err = pb.RegisterAuthHandlerFromEndpoint(ctx, mux, fmt.Sprintf("0.0.0.0%s", GRPCPort), dialOptions)
+	if err != nil {
+		log.Fatalf("cannot register auth server from endpoint: %s", err)
+	}
 
 	log.Printf(
 		"server REST started in localhost%s (Wait 60 second before making http requests) ...\n",
 		RESTPort,
 	)
-	go func() {
-		err := http.ListenAndServe(RESTPort, allowCORS(mux))
-		if err != nil {
-			log.Fatal("cannot start REST server: ", err)
-		}
-	}()
+	err = http.ListenAndServe(RESTPort, allowCORS(mux))
+	if err != nil {
+		log.Fatal("cannot start REST server: ", err)
+	}
 	// end of REST server
-
-	// start gRPC server
-	listener, err := net.Listen("tcp", GRPCPort)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-
-	grpcServer := grpc.NewServer()
-
-	pb.RegisterAuthServer(grpcServer, &authServer)
-	reflection.Register(grpcServer)
-
-	log.Printf("server gRPC is starting in localhost%s ...\n", GRPCPort)
-	err = grpcServer.Serve(listener)
-	if err != nil {
-		log.Fatal("cannot start GRPC server: ", err)
-	}
-	// end of gRPC server
 }

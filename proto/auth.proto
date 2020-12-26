@@ -51,4 +51,5 @@ message User {
   string username = 5;
   string password = 6;
   string gender = 7;
+  uint64 roleId = 8;
 }

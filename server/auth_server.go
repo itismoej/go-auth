@@ -39,8 +39,13 @@ func (server *AuthServer) Login(ctx context.Context, credentials *pb.Credentials
 }
 
 func (server *AuthServer) Signup(ctx context.Context, user *pb.User) (*pb.User, error) {
+	creator := ctx.Value("user").(models.User)
+	if !creator.IsAdmin {
+		return nil, status.Errorf(codes.PermissionDenied, "permission denied: Only Admin can create user")
+	}
+
 	var newUser models.User
-	newUser.FromProtoBuf(user)
+	newUser.FillFromProtoBuf(user)
 	newUser.IsActive = true
 	newUser.SetNewPassword(user.Password)
 

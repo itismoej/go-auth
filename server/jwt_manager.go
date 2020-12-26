@@ -18,12 +18,12 @@ type JWTManager struct {
 
 type UserClaims struct {
 	jwt.StandardClaims
-	UserID    uint64      `json:"user_id"`
-	Username  string      `json:"username"`
-	Role      models.Role `json:"role"`
-	FirstName string      `json:"first_name"`
-	LastName  string      `json:"last_name"`
-	Email     string      `json:"email"`
+	UserID    uint64 `json:"user_id"`
+	Username  string `json:"username"`
+	RoleID    uint64 `json:"role"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
 }
 
 func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
@@ -33,7 +33,7 @@ func (manager *JWTManager) Generate(user *models.User) *pb.JWTToken {
 		},
 		UserID:    user.ID,
 		Username:  user.Username,
-		Role:      user.Role,
+		RoleID:    user.RoleID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,

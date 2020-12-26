@@ -12,15 +12,16 @@ type User struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	DeletedAt      gorm.DeletedAt `gorm:"index"`
-	RoleID         uint
-	Role           Role
-	FirstName      string `gorm:"size:255"`
-	LastName       string `gorm:"size:255"`
-	Email          string `gorm:"type:varchar(100);unique_index"`
-	Username       string `gorm:"type:varchar(30);unique_index"`
-	HashedPassword string `gorm:"type:varchar(255)"`
+	RoleID         uint64         `gorm:"not null"`
+	Role           Role           `gorm:"not null"`
+	FirstName      string         `gorm:"size:255"`
+	LastName       string         `gorm:"size:255"`
+	Email          string         `gorm:"type:varchar(100);index;unique"`
+	Username       string         `gorm:"type:varchar(30);index;unique"`
+	HashedPassword string         `gorm:"type:varchar(255)"`
 	Gender         string
 	IsActive       bool
+	IsAdmin        bool `gorm:"-"`
 }
 
 func (user *User) SetNewPassword(rawPassword string) {
@@ -33,10 +34,11 @@ func (user *User) PasswordIsCorrect(rawPassword string) bool {
 	return err == nil
 }
 
-func (user *User) FromProtoBuf(pbUser *pb.User) {
+func (user *User) FillFromProtoBuf(pbUser *pb.User) {
 	user.ID = pbUser.ID
 	user.FirstName = pbUser.FirstName
 	user.LastName = pbUser.LastName
+	user.RoleID = pbUser.RoleId
 	user.Email = pbUser.Email
 	user.Username = pbUser.Username
 	user.Gender = pbUser.Gender
@@ -47,6 +49,7 @@ func (user *User) ConvertToProtoBuf() *pb.User {
 		ID:        user.ID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
+		RoleId:    user.RoleID,
 		Email:     user.Email,
 		Username:  user.Username,
 		Gender:    user.Gender,

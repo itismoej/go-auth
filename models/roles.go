@@ -2,9 +2,13 @@ package models
 
 import (
 	"gorm.io/gorm"
+	"time"
 )
 
 type Role struct {
-	gorm.Model
-	Name string `gorm:"size:20"`
+	ID        uint64 `gorm:"primarykey"`
+	Name      string `gorm:"size:20;unique"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

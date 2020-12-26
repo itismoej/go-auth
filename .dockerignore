@@ -4,10 +4,11 @@ Dockerfile
 .gitignore
 README.md
 env.*
+*.env
 
 *.csv
 /tmp/*
 *.pem
-*.env
 *.db
 *.sqlite3
+pb/*
