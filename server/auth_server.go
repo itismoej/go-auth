@@ -39,8 +39,8 @@ func (server *AuthServer) Login(ctx context.Context, credentials *pb.Credentials
 }
 
 func (server *AuthServer) Signup(ctx context.Context, user *pb.User) (*pb.User, error) {
-	creator := ctx.Value("user").(models.User)
-	if !creator.IsAdmin {
+	creator := ctx.Value("user")
+	if creator == nil || !creator.(models.User).IsAdmin {
 		return nil, status.Errorf(codes.PermissionDenied, "permission denied: Only Admin can create user")
 	}
 
@@ -52,9 +52,10 @@ func (server *AuthServer) Signup(ctx context.Context, user *pb.User) (*pb.User, 
 	result := DB.Create(&newUser)
 	if errors.Is(result.Error, gorm.ErrInvalidData) {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid data has been entered")
-	}
-	if errors.Is(result.Error, gorm.ErrRegistered) {
+	} else if errors.Is(result.Error, gorm.ErrRegistered) {
 		return nil, status.Errorf(codes.AlreadyExists, "this user is already registered")
+	} else if result.Error != nil {
+		return nil, status.Errorf(codes.Unknown, "%s", result.Error)
 	}
 
 	user = newUser.ConvertToProtoBuf()

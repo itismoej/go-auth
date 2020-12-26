@@ -16,7 +16,7 @@ type User struct {
 	Role           Role           `gorm:"not null"`
 	FirstName      string         `gorm:"size:255"`
 	LastName       string         `gorm:"size:255"`
-	Email          string         `gorm:"type:varchar(100);index;unique"`
+	Email          string         `gorm:"type:varchar(100);index"`
 	Username       string         `gorm:"type:varchar(30);index;unique"`
 	HashedPassword string         `gorm:"type:varchar(255)"`
 	Gender         string
