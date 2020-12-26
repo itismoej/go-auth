@@ -65,6 +65,9 @@ func (manager *JWTManager) Verify(jwtToken string) (*UserClaims, error) {
 	}
 
 	parts := strings.Split(jwtToken, ".")
+	if len(parts) < 3 {
+		return nil, fmt.Errorf("invalid token")
+	}
 
 	err = jwt.SigningMethodES512.Verify(strings.Join(parts[0:2], "."), parts[2], publicKey)
 	if err != nil {
