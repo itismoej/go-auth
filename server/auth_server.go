@@ -102,10 +102,10 @@ func (server *AuthServer) GetUserInfo(ctx context.Context, userID *pb.UserID) (*
 	}, nil
 }
 
-func (server *AuthServer) ChangePassword (ctx context.Context, pairPassword *pb.PairPassword) (*pb.User, error) {
+func (server *AuthServer) ChangePassword(ctx context.Context, pairPassword *pb.PairPassword) (*pb.User, error) {
 	accessToken, err := grpcAuth.AuthFromMD(ctx, "bearer")
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 	claims, err := accessJwtManager.Verify(accessToken)
 	if err != nil {
@@ -117,11 +117,12 @@ func (server *AuthServer) ChangePassword (ctx context.Context, pairPassword *pb.
 
 	var user models.User
 	DB.Take(&user, "username = ?", claims.Username)
-	if user.PasswordIsCorrect(pairPassword.OldPassword){
+	if user.PasswordIsCorrect(pairPassword.OldPassword) {
 		user.SetNewPassword(pairPassword.NewPassword)
-		return nil, err
+		DB.Save(&user)
+		pbUser := user.ConvertToProtoBuf()
+		return pbUser, nil
+	} else {
+		return nil, fmt.Errorf("incorrect password entered")
 	}
-	pbUser := user.ConvertToProtoBuf()
-	return pbUser, nil
-
 }
