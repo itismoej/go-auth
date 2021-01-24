@@ -61,6 +61,8 @@ func main() {
 	pb.RegisterAuthServer(grpcServer, &authServer)
 	reflection.Register(grpcServer)
 
+	log.Print("\n\n\n =========  Go-Auth  =========\n\n")
+
 	log.Printf("server gRPC is starting in localhost%s ...\n", GRPCPort)
 	go func() {
 		err = grpcServer.Serve(listener)

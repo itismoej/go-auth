@@ -80,20 +80,19 @@ func (server *AuthServer) RefreshAccessToken(ctx context.Context, refreshToken *
 	res := &pb.JWTToken{Token: access.Token}
 	return res, nil
 }
+
 func (server *AuthServer) GetUserInfo(ctx context.Context, userID *pb.UserID) (*pb.Users, error) {
 	creator := ctx.Value("user")
 	if creator == nil || !creator.(models.User).IsAdmin {
 		return nil, status.Errorf(codes.PermissionDenied, "permission denied: Only Admin can see user's list")
 	}
-	res := make([]*pb.User, len(userID.GetId()))
-	var user models.User
-	for _, element := range userID.GetId() {
-		userInfo := DB.Find(&user, element)
-		if errors.Is(userInfo.Error, gorm.ErrRecordNotFound) {
-			return nil, status.Errorf(codes.NotFound, "incorrect claims")
-		}
-		userObj := user.ConvertToProtoBuf()
-		res = append(res, userObj)
+
+	var users []models.User
+	DB.Find(&users, userID.GetId())
+
+	res := make([]*pb.User, 0)
+	for _, user := range users {
+		res = append(res, user.ConvertToProtoBuf())
 	}
 	
 	return &pb.Users{
