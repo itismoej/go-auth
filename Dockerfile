@@ -5,8 +5,7 @@ MAINTAINER Mohammad Jafari <m.jafari9877@gmail.com>
 ADD . /go/src/github.com/mjafari98/go-auth/
 WORKDIR /go/src/github.com/mjafari98/go-auth
 
-RUN apt-get update
-RUN apt-get install -y protobuf-compiler
+RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
 RUN go install \
 		github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
