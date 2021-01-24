@@ -27,6 +27,16 @@ service Auth {
       body: "*"
     };
   };
+  rpc GetUserInfo (UserID) returns (Users) {
+    option (google.api.http) = {
+      post: "/getusers"
+      body: "*"
+    };
+  }
+}
+
+message UserID {
+  repeated uint64 Id = 1;
 }
 
 message Credentials {
@@ -41,6 +51,10 @@ message JWTToken {
 message PairToken {
   JWTToken refresh = 1;
   JWTToken access = 2;
+}
+
+message Users {
+  repeated User Users = 1;
 }
 
 message User {
