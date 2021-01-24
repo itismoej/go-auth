@@ -19,7 +19,7 @@ service Auth {
       post: "/login"
       body: "*"
     };
-  }
+  };
 
   rpc RefreshAccessToken (JWTToken) returns (JWTToken) {
     option (google.api.http) = {
@@ -27,12 +27,25 @@ service Auth {
       body: "*"
     };
   };
+
   rpc GetUserInfo (UserID) returns (Users) {
     option (google.api.http) = {
       post: "/getusers"
       body: "*"
     };
-  }
+  };
+
+  rpc ChangePassword (PairPassword) returns (User) {
+    option (google.api.http) = {
+      post: "/user/edit_password"
+      body: "*"
+    };
+  };
+}
+
+message PairPassword {
+  string oldPassword = 1;
+  string newPassword = 2;
 }
 
 message UserID {

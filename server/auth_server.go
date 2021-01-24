@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcContextTags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/mjafari98/go-auth/models"
 	"github.com/mjafari98/go-auth/pb"
 	"google.golang.org/grpc/codes"
@@ -94,8 +96,32 @@ func (server *AuthServer) GetUserInfo(ctx context.Context, userID *pb.UserID) (*
 	for _, user := range users {
 		res = append(res, user.ConvertToProtoBuf())
 	}
-	
+
 	return &pb.Users{
-		Users:res,
+		Users: res,
 	}, nil
+}
+
+func (server *AuthServer) ChangePassword (ctx context.Context, pairPassword *pb.PairPassword) (*pb.User, error) {
+	accessToken, err := grpcAuth.AuthFromMD(ctx, "bearer")
+	if err != nil {
+	    return nil, err
+	}
+	claims, err := accessJwtManager.Verify(accessToken)
+	if err != nil {
+		fmt.Println(err)
+		return nil, status.Errorf(codes.Unauthenticated, "jwt is not valid")
+	}
+
+	grpcContextTags.Extract(ctx).Set("auth.sub", claims)
+
+	var user models.User
+	DB.Take(&user, "username = ?", claims.Username)
+	if user.PasswordIsCorrect(pairPassword.OldPassword){
+		user.SetNewPassword(pairPassword.NewPassword)
+		return nil, err
+	}
+	pbUser := user.ConvertToProtoBuf()
+	return pbUser, nil
+
 }
